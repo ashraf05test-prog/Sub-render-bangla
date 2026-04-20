@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>AniSub — Subtitle Burner</title>
+<style>
+/* ════════════════════════════════════════════
+   RESET & BASE
+════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0d0f14;
+  --bg1:#13161f;
+  --bg2:#1a1e2b;
+  --bg3:#222739;
+  --border:#2a2f45;
+  --accent:#7c6ef7;
+  --accent2:#5b4fcf;
+  --accent-glow:rgba(124,110,247,.25);
+  --ok:#3ecf8e;
+  --warn:#f5a623;
+  --err:#f06060;
+  --info:#8899bb;
+  --step:#7c6ef7;
+  --text:#e2e6f0;
+  --text2:#8899bb;
+  --radius:12px;
+  --shadow:0 4px 24px rgba(0,0,0,.45);
+}
+html,body{height:100%;background:var(--bg0);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}
+a{color:var(--accent);text-decoration:none}
+
+/* ════════════════════════════════════════════
+   LAYOUT
+════════════════════════════════════════════ */
+.app{display:flex;flex-direction:column;min-height:100vh;max-width:680px;margin:0 auto;padding:0 0 env(safe-area-inset-bottom,16px)}
+
+/* ── header ── */
+header{padding:20px 20px 0;display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 2px 12px var(--accent-glow)}
+.logo-text h1{font-size:1.25rem;font-weight:700;letter-spacing:-.3px}
+.logo-text p{font-size:.78rem;color:var(--text2)}
+
+/* ── tabs ── */
+.tabs{display:flex;gap:4px;padding:16px 20px 0;position:sticky;top:0;z-index:10;background:var(--bg0)}
+.tab{flex:1;padding:10px 6px;border:none;border-radius:var(--radius) var(--radius) 0 0;background:var(--bg2);color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px}
+.tab:hover{background:var(--bg3);color:var(--text)}
+.tab.active{background:var(--accent);color:#fff;box-shadow:0 -2px 12px var(--accent-glow)}
+.tab-badge{background:var(--ok);color:#000;border-radius:50%;width:16px;height:16px;font-size:.65rem;display:inline-flex;align-items:center;justify-content:center;display:none}
+.tab-badge.show{display:inline-flex}
+
+/* ── panels ── */
+.panels{flex:1;background:var(--bg1);border-radius:0 0 var(--radius) var(--radius);padding:20px;border:1px solid var(--border);border-top:none}
+.panel{display:none}
+.panel.active{display:block}
+
+/* ════════════════════════════════════════════
+   FORM ELEMENTS
+════════════════════════════════════════════ */
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:.3px;text-transform:uppercase}
+.field input,.field textarea,.field select{
+  width:100%;padding:11px 14px;background:var(--bg2);border:1.5px solid var(--border);
+  border-radius:9px;color:var(--text);font-size:.92rem;
+  transition:border-color .2s,box-shadow .2s;outline:none;
+}
+.field input::placeholder,.field textarea::placeholder{color:var(--text2);opacity:.6}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.field textarea{resize:vertical;min-height:90px;font-family:monospace;font-size:.82rem}
+.field select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238899bb' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.field select option{background:var(--bg2)}
+
+/* subtitle toggle */
+.sub-toggle{display:flex;gap:6px;margin-bottom:10px}
+.sub-btn{flex:1;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text2);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s;text-align:center}
+.sub-btn:hover{border-color:var(--accent);color:var(--text)}
+.sub-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
+
+/* style cards */
+.style-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
+.style-card{padding:12px 8px;border:2px solid var(--border);border-radius:10px;background:var(--bg2);cursor:pointer;text-align:center;transition:all .2s;position:relative}
+.style-card:hover{border-color:var(--accent);background:var(--bg3)}
+.style-card.selected{border-color:var(--accent);background:linear-gradient(135deg,rgba(124,110,247,.15),rgba(91,79,207,.1));box-shadow:0 0 0 1px var(--accent)}
+.style-card .sc-num{font-size:1.5rem;margin-bottom:4px}
+.style-card .sc-name{font-size:.78rem;font-weight:700;color:var(--text);line-height:1.2}
+.style-card .sc-desc{font-size:.7rem;color:var(--text2);margin-top:3px;line-height:1.3}
+.style-card .sc-check{position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent);border-radius:50%;display:none;align-items:center;justify-content:center}
+.style-card .sc-check::after{content:'✓';font-size:.65rem;color:#fff}
+.style-card.selected .sc-check{display:flex}
+input[name="style"]{display:none}
+
+/* preview badge */
+.preview-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;font-size:.75rem;font-weight:600;margin-top:8px}
+.pb-box{background:rgba(0,0,0,.7);border:1px solid #555;color:#fff}
+.pb-netflix{background:rgba(229,9,20,.15);border:1px solid #e50914;color:#ff4c57}
+.pb-mobile{background:rgba(124,110,247,.15);border:1px solid var(--accent);color:var(--accent)}
+
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border:none;border-radius:10px;font-size:.93rem;font-weight:700;cursor:pointer;transition:all .2s;width:100%;margin-top:4px}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 16px var(--accent-glow)}
+.btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0);filter:brightness(.95)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1.5px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border);width:auto;padding:7px 14px;font-size:.82rem;margin-top:0}
+.btn-ghost:hover{color:var(--text);border-color:var(--text2)}
+
+/* ── status / toasts ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);padding:12px 20px;border-radius:10px;font-size:.88rem;font-weight:600;color:#fff;z-index:9999;transition:transform .35s cubic-bezier(.175,.885,.32,1.275),opacity .35s;opacity:0;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast-ok{background:var(--ok)}
+.toast-err{background:var(--err)}
+
+/* ── log panel ── */
+.log-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap}
+.log-toolbar h3{font-size:.95rem;font-weight:700}
+.log-toolbar-right{display:flex;gap:6px}
+.log-box{background:var(--bg0);border:1.5px solid var(--border);border-radius:10px;padding:14px;height:460px;overflow-y:auto;font-family:'JetBrains Mono','Fira Mono',monospace;font-size:.78rem;line-height:1.65;scroll-behavior:smooth}
+.log-box::-webkit-scrollbar{width:5px}
+.log-box::-webkit-scrollbar-track{background:transparent}
+.log-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.log-entry{display:flex;align-items:baseline;gap:8px;padding:1px 0;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+.log-ts{color:var(--border);flex-shrink:0;font-size:.7rem}
+.log-prefix{flex-shrink:0;font-weight:700;min-width:42px}
+.log-msg{word-break:break-all}
+.log-ok .log-prefix{color:var(--ok)}
+.log-ok .log-msg{color:#c8f5e2}
+.log-error .log-prefix{color:var(--err)}
+.log-error .log-msg{color:#ffc8c8}
+.log-warn .log-prefix{color:var(--warn)}
+.log-warn .log-msg{color:#fde8c0}
+.log-info .log-prefix{color:var(--info)}
+.log-info .log-msg{color:var(--text2)}
+.log-step .log-prefix{color:var(--step)}
+.log-step .log-msg{color:var(--text);font-weight:700}
+.log-progress .log-prefix{color:#5fafff}
+.log-progress .log-msg{color:#a8d0ff;font-family:monospace}
+.log-done .log-msg{color:var(--ok);font-weight:700}
+.log-empty{color:var(--text2);text-align:center;padding:40px 0;font-size:.85rem}
+
+/* status bar */
+.status-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:9px;margin-bottom:14px;border:1.5px solid var(--border);background:var(--bg2);font-size:.83rem;font-weight:600}
+.status-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.status-idle .status-dot{background:var(--text2)}
+.status-running .status-dot{background:var(--warn);animation:pulse 1s infinite}
+.status-done .status-dot{background:var(--ok)}
+.status-failed .status-dot{background:var(--err)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* link box */
+.link-box{background:var(--bg2);border:1.5px solid var(--ok);border-radius:10px;padding:12px 16px;margin-top:12px;display:none}
+.link-box.show{display:block}
+.link-box a{color:var(--ok);font-weight:700;word-break:break-all}
+.link-box p{font-size:.8rem;color:var(--text2);margin-top:4px}
+
+/* ── config status ── */
+.cfg-row{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:9px;background:var(--bg2);border:1.5px solid var(--border);margin-bottom:16px;font-size:.83rem}
+.cfg-icon{font-size:1.1rem}
+.cfg-status-text{flex:1;color:var(--text2)}
+.cfg-status-text strong{color:var(--text)}
+.cfg-ok .cfg-icon::before{content:'✅'}
+.cfg-missing .cfg-icon::before{content:'⚠️'}
+
+/* section divider */
+.divider{height:1px;background:var(--border);margin:20px 0}
+.section-title{font-size:.82rem;font-weight:700;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── responsive ── */
+@media(min-width:480px){
+  .style-cards{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:360px){
+  .style-cards{grid-template-columns:1fr}
+  .style-card{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px}
+  .style-card .sc-num{font-size:1.3rem;margin:0}
+}
+
+/* ── animations ── */
+.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── System banner (ffmpeg missing warning) ── -->
+  <div id="sys-banner" style="display:none;background:#3a1a1a;border-bottom:2px solid var(--err);padding:10px 20px;font-size:.82rem;color:#ffa0a0;display:flex;align-items:center;gap:8px">
+    <span>⚠️</span>
+    <span id="sys-banner-msg">ffmpeg not found. Run: <code style="background:#2a0a0a;padding:2px 6px;border-radius:4px">apt-get install -y ffmpeg</code></span>
+  </div>
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">🎬</div>
+    <div class="logo-text">
+      <h1>AniSub</h1>
+      <p>Subtitle Burner &amp; Telegram Uploader</p>
+    </div>
+  </header>
+
+  <!-- ── Tabs ── -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('settings',this)">
+      ⚙️ <span>Settings</span>
+    </button>
+    <button class="tab" onclick="switchTab('process',this)">
+      🎬 <span>Process</span>
+    </button>
+    <button class="tab" id="tab-logs" onclick="switchTab('logs',this)">
+      📋 <span>Logs</span>
+      <span class="tab-badge" id="log-badge">!</span>
+    </button>
+  </div>
+
+  <!-- ── Panels ── -->
+  <div class="panels">
+
+    <!-- ══════════════ SETTINGS ══════════════ -->
+    <div class="panel active" id="panel-settings">
+      <div id="cfg-status" class="cfg-row cfg-missing">
+        <span class="cfg-icon"></span>
+        <span class="cfg-status-text">Telegram not configured</span>
+      </div>
+
+      <div class="section-title">🔐 Telegram Credentials</div>
+      <p style="font-size:.8rem;color:var(--text2);margin-bottom:14px">
+        Get your credentials at <a href="https://my.telegram.org" target="_blank">my.telegram.org</a> → API Development Tools
+      </p>
+
+      <div class="field">
+        <label>API ID</label>
+        <input type="number" id="tg_api_id" placeholder="12345678" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>API Hash</label>
+        <input type="text" id="tg_api_hash" placeholder="0abc123def456…" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Bot Token</label>
+        <input type="text" id="tg_bot_token" placeholder="123456:ABC-DEF…" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Chat ID</label>
+        <input type="text" id="tg_chat_id" placeholder="@channel or -100…" autocomplete="off"/>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveConfig(this)">
+        <span>💾</span><span>Save Configuration</span>
+      </button>
+
+      <div class="divider"></div>
+      <div class="section-title">ℹ️ How to Use</div>
+      <div style="font-size:.8rem;color:var(--text2);line-height:1.7">
+        <p><strong style="color:var(--text)">1.</strong> Fill in your Telegram credentials above and save.</p>
+        <p><strong style="color:var(--text)">2.</strong> Go to <strong style="color:var(--text)">Process</strong> tab, enter video URL &amp; subtitle.</p>
+        <p><strong style="color:var(--text)">3.</strong> Choose a style preset and hit <strong style="color:var(--text)">Submit</strong>.</p>
+        <p><strong style="color:var(--text)">4.</strong> Watch live progress in the <strong style="color:var(--text)">Logs</strong> tab.</p>
+      </div>
+    </div>
+
+    <!-- ══════════════ PROCESS ══════════════ -->
+    <div class="panel" id="panel-process">
+
+      <div class="section-title">📹 Video Source</div>
+      <div class="field">
+        <label>Video URL <span style="color:var(--err)">*</span></label>
+        <input type="url" id="video_url" placeholder="https://… .mp4 / .m3u8 / stream URL" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Referer <span style="color:var(--text2);font-size:.75rem;text-transform:none;font-weight:400">(optional – site homepage)</span></label>
+        <input type="url" id="referer" placeholder="https://example.com" autocomplete="off"/>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">📝 Subtitle</div>
+
+      <!-- subtitle source toggle -->
+      <div class="sub-toggle">
+        <div class="sub-btn active" onclick="setSubMode('file',this)">📁 Upload File</div>
+        <div class="sub-btn" onclick="setSubMode('url',this)">🌐 URL</div>
+        <div class="sub-btn" onclick="setSubMode('text',this)">✏️ Paste SRT</div>
+      </div>
+
+      <div id="sub-file-wrap" class="field">
+        <label>SRT / VTT / ASS File</label>
+        <input type="file" id="sub_file" accept=".srt,.vtt,.ass,.txt" style="padding:8px"/>
+      </div>
+      <div id="sub-url-wrap" class="field" style="display:none">
+        <label>Subtitle URL</label>
+        <input type="url" id="sub_url" placeholder="https://…/subtitle.srt" autocomplete="off"/>
+      </div>
+      <div id="sub-text-wrap" class="field" style="display:none">
+        <label>Paste SRT Text</label>
+        <textarea id="sub_text" placeholder="1&#10;00:00:01,000 --> 00:00:04,000&#10;Your subtitle text here…"></textarea>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">🎨 Style Preset</div>
+
+      <div class="style-cards">
+        <!-- Card 1 -->
+        <label class="style-card selected" onclick="selectStyle('1')">
+          <input type="radio" name="style" value="1" checked/>
+          <div class="sc-num">📦</div>
+          <div class="sc-name">Screenshot Boxed</div>
+          <div class="sc-desc">Black box background</div>
+          <div class="preview-badge pb-box" style="font-size:.65rem;padding:3px 7px;margin-top:6px">Style 1</div>
+          <div class="sc-check"></div>
+        </label>
+        <!-- Card 2 -->
+        <label class="style-card" onclick="selectStyle('2')">
+          <input type="radio" name="style" value="2"/>
+          <div class="sc-num">🎭</div>
+          <div class="sc-name">Netflix Clean</div>
+          <div class="sc-desc">Strong outline only</div>
+          <div class="preview-badge pb-netflix" style="font-size:.65rem;padding:3px 7px;margin-top:6px">Style 2</div>
+          <div class="sc-check"></div>
+        </label>
+        <!-- Card 3 -->
+        <label class="style-card" onclick="selectStyle('3')">
+          <input type="radio" name="style" value="3"/>
+          <div class="sc-num">📱</div>
+          <div class="sc-name">Big Mobile Box</div>
+          <div class="sc-desc">XL for reels/shorts</div>
+          <div class="preview-badge pb-mobile" style="font-size:.65rem;padding:3px 7px;margin-top:6px">Style 3</div>
+          <div class="sc-check"></div>
+        </label>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">📤 Post Info</div>
+
+      <div class="field">
+        <label>Title <span style="color:var(--err)">*</span></label>
+        <input type="text" id="post_title" placeholder="Demon Slayer S02E01" value="AniSub"/>
+      </div>
+      <div class="field">
+        <label>Caption <span style="color:var(--text2);font-size:.75rem;text-transform:none;font-weight:400">(optional)</span></label>
+        <textarea id="post_caption" placeholder="Short description or episode info…" style="min-height:70px"></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="submit-btn" onclick="submitJob(this)">
+        <span id="submit-icon">🚀</span><span id="submit-label">Start Processing</span>
+      </button>
+    </div>
+
+    <!-- ══════════════ LOGS ══════════════ -->
+    <div class="panel" id="panel-logs">
+      <div class="log-toolbar">
+        <h3>Live Progress</h3>
+        <div class="log-toolbar-right">
+          <button class="btn-ghost" onclick="clearLogs()">🗑 Clear</button>
+          <button class="btn-ghost" id="autoscroll-btn" onclick="toggleAutoScroll(this)">⬇ Auto</button>
+        </div>
+      </div>
+
+      <div class="status-bar status-idle" id="status-bar">
+        <div class="status-dot"></div>
+        <span id="status-text">No job running</span>
+      </div>
+
+      <div class="log-box" id="log-box">
+        <div class="log-empty">Logs will appear here once you start a job.</div>
+      </div>
+
+      <div class="link-box" id="link-box">
+        <p style="font-size:.75rem;color:var(--text2);margin-bottom:4px">✅ Uploaded to Telegram</p>
+        <a id="tg-link" href="#" target="_blank">View message →</a>
+        <p>Share or open in Telegram.</p>
+      </div>
+    </div>
+
+  </div><!-- /panels -->
+</div><!-- /app -->
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let autoScroll = true;
+let currentJobId = null;
+let eventSource = null;
+let subMode = 'file';
+let selectedStyle = '1';
+let logBadge = false;
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+  checkSystem();
+  // Drag-drop on file input
+  const fi = document.getElementById('sub_file');
+  fi.addEventListener('change', () => {
+    if(fi.files[0]) showToast('File selected: ' + fi.files[0].name, 'ok');
+  });
+});
+
+// ═══════════════════════════════════════════════
+//  SYSTEM CHECK
+// ═══════════════════════════════════════════════
+async function checkSystem() {
+  try {
+    const res = await fetch('/system');
+    const data = await res.json();
+    const banner = document.getElementById('sys-banner');
+    if(!data.ok) {
+      banner.style.display = 'flex';
+      document.getElementById('sys-banner-msg').innerHTML =
+        '⚠️ <strong>ffmpeg not found</strong> — install it: ' +
+        '<code style="background:#2a0a0a;padding:2px 6px;border-radius:4px">apt-get install -y ffmpeg</code>' +
+        '  Missing: ' + data.missing.join(', ');
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if(name === 'logs') {
+    document.getElementById('log-badge').classList.remove('show');
+    logBadge = false;
+  }
+}
+
+function goLogs() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-logs').classList.add('active');
+  document.getElementById('panel-logs').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+let _toastTimer = null;
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast toast-' + (type === 'ok' ? 'ok' : 'err') + ' show';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+async function loadConfig() {
+  try {
+    const res = await fetch('/config');
+    if(!res.ok) return;
+    const cfg = await res.json();
+    if(cfg.tg_api_id)    document.getElementById('tg_api_id').value    = cfg.tg_api_id;
+    if(cfg.tg_api_hash)  document.getElementById('tg_api_hash').value  = cfg.tg_api_hash;
+    if(cfg.tg_bot_token) document.getElementById('tg_bot_token').value = cfg.tg_bot_token;
+    if(cfg.tg_chat_id)   document.getElementById('tg_chat_id').value   = cfg.tg_chat_id;
+    updateCfgStatus(cfg);
+  } catch(e) {}
+}
+
+function updateCfgStatus(cfg) {
+  const keys = ['tg_api_id','tg_api_hash','tg_bot_token','tg_chat_id'];
+  const all = keys.every(k => cfg[k] && String(cfg[k]).trim());
+  const row = document.getElementById('cfg-status');
+  const txt = row.querySelector('.cfg-status-text');
+  row.className = 'cfg-row ' + (all ? 'cfg-ok' : 'cfg-missing');
+  txt.innerHTML = all
+    ? `<strong>Telegram configured</strong> — Chat: ${cfg.tg_chat_id || '?'}`
+    : 'Telegram not configured — fill in your credentials below';
+}
+
+async function saveConfig(btn) {
+  const data = {
+    tg_api_id:    document.getElementById('tg_api_id').value.trim(),
+    tg_api_hash:  document.getElementById('tg_api_hash').value.trim(),
+    tg_bot_token: document.getElementById('tg_bot_token').value.trim(),
+    tg_chat_id:   document.getElementById('tg_chat_id').value.trim(),
+  };
+  setBtn(btn, '⏳', 'Saving…', true);
+  try {
+    const res = await fetch('/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    const json = await res.json();
+    if(json.error) { showToast(json.error, 'err'); return; }
+    showToast('✅ Configuration saved!', 'ok');
+    updateCfgStatus(data);
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'err');
+  } finally {
+    setBtn(btn, '💾', 'Save Configuration', false);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SUBTITLE MODE
+// ═══════════════════════════════════════════════
+function setSubMode(mode, el) {
+  subMode = mode;
+  document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sub-file-wrap').style.display = mode==='file' ? '' : 'none';
+  document.getElementById('sub-url-wrap').style.display  = mode==='url'  ? '' : 'none';
+  document.getElementById('sub-text-wrap').style.display = mode==='text' ? '' : 'none';
+}
+
+// ═══════════════════════════════════════════════
+//  STYLE CARDS
+// ═══════════════════════════════════════════════
+function selectStyle(val) {
+  selectedStyle = val;
+  document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('input[name="style"]').forEach((r,i) => {
+    if(r.value === val) {
+      r.checked = true;
+      r.closest('.style-card').classList.add('selected');
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  SUBMIT JOB
+// ═══════════════════════════════════════════════
+async function submitJob(btn) {
+  const video_url = document.getElementById('video_url').value.trim();
+  if(!video_url) { showToast('Video URL is required', 'err'); return; }
+
+  // subtitle validation
+  let hasSubtitle = false;
+  if(subMode==='file') hasSubtitle = !!document.getElementById('sub_file').files[0];
+  else if(subMode==='url') hasSubtitle = !!document.getElementById('sub_url').value.trim();
+  else if(subMode==='text') hasSubtitle = !!document.getElementById('sub_text').value.trim();
+  if(!hasSubtitle) { showToast('Please provide a subtitle', 'err'); return; }
+
+  const title = document.getElementById('post_title').value.trim() || 'AniSub';
+
+  setBtn(btn, '⏳', 'Submitting…', true);
+  clearLogs();
+  setStatus('running', 'Starting job…');
+  document.getElementById('link-box').classList.remove('show');
+
+  const fd = new FormData();
+  fd.append('video_url', video_url);
+  fd.append('referer',   document.getElementById('referer').value.trim());
+  fd.append('style',     selectedStyle);
+  fd.append('title',     title);
+  fd.append('caption',   document.getElementById('post_caption').value.trim());
+  if(subMode==='file') fd.append('sub_file', document.getElementById('sub_file').files[0]);
+  else if(subMode==='url') fd.append('sub_url', document.getElementById('sub_url').value.trim());
+  else if(subMode==='text') fd.append('sub_text', document.getElementById('sub_text').value.trim());
+
+  try {
+    const res = await fetch('/process', {method:'POST', body:fd});
+    const json = await res.json();
+    if(json.error) {
+      showToast(json.error, 'err');
+      setStatus('failed', json.error);
+      setBtn(btn, '🚀', 'Start Processing', false);
+      return;
+    }
+    currentJobId = json.job_id;
+    goLogs();
+    startSSE(currentJobId);
+    showToast('Job started!', 'ok');
+  } catch(e) {
+    showToast('Submit failed: ' + e.message, 'err');
+    setStatus('failed', e.message);
+  } finally {
+    setBtn(btn, '🚀', 'Start Processing', false);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  SSE
+// ═══════════════════════════════════════════════
+function startSSE(jobId) {
+  if(eventSource) { eventSource.close(); }
+  eventSource = new EventSource('/status/' + jobId);
+  eventSource.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    if(ev.level === 'ping') return;
+    if(ev.level === 'done') {
+      eventSource.close();
+      eventSource = null;
+      if(ev.success) {
+        setStatus('done', 'Completed successfully ✅');
+        if(ev.msg && ev.msg.startsWith('http')) {
+          document.getElementById('tg-link').href = ev.msg;
+          document.getElementById('link-box').classList.add('show');
+        }
+      } else {
+        setStatus('failed', 'Failed: ' + (ev.msg || 'unknown error'));
+      }
+      appendLog('done', '', ev.success ? '✅ Job completed!' : '❌ Job failed: ' + ev.msg);
+      // badge if not on logs tab
+      if(!document.getElementById('panel-logs').classList.contains('active')) {
+        document.getElementById('log-badge').classList.add('show');
+        logBadge = true;
+      }
+      return;
+    }
+    appendLog(ev.level, ev.ts, ev.msg);
+  };
+  eventSource.onerror = () => {
+    appendLog('warn', '', 'Connection lost — job may still be running on server');
+  };
+}
+
+// ═══════════════════════════════════════════════
+//  AUTO-RECONNECT on page load/refresh
+// ═══════════════════════════════════════════════
+async function checkActiveJobs() {
+  try {
+    const res  = await fetch('/jobs/active');
+    const jobs = await res.json();
+    if (!jobs.length) return;
+
+    const job = jobs[0];
+    currentJobId = job.job_id;
+    setStatus('running', `Reconnecting to job: ${job.title || job.job_id}`);
+    goLogs();
+    appendLog('warn', '', `🔄 Reconnected to running job: ${job.title} (started ${job.started_at})`);
+
+    // Replay history first
+    try {
+      const hr = await fetch('/jobs/' + job.job_id + '/history');
+      const hd = await hr.json();
+      if (hd.history && hd.history.length) {
+        appendLog('info', '', '── Replaying previous logs ──');
+        hd.history.forEach(ev => {
+          if (ev.level !== 'ping') appendLog(ev.level, ev.ts, ev.msg);
+        });
+        appendLog('info', '', '── Live logs ──');
+      }
+      if (hd.status === 'done' || hd.status === 'failed') {
+        setStatus(hd.status, hd.status === 'done' ? 'Completed ✅' : 'Failed ❌');
+        return;
+      }
+    } catch(e) {}
+
+    // Stream live events
+    startSSE(job.job_id);
+  } catch(e) {}
+}
+
+window.addEventListener('load', checkActiveJobs);
+
+// ═══════════════════════════════════════════════
+//  LOG BOX
+// ═══════════════════════════════════════════════
+let logCount = 0;
+function appendLog(level, ts, msg) {
+  const box = document.getElementById('log-box');
+  // remove empty placeholder
+  const empty = box.querySelector('.log-empty');
+  if(empty) empty.remove();
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry log-' + level;
+
+  const prefixes = {ok:'[OK]', error:'[ERR]', warn:'[!!]', info:'···', step:'►', progress:'↑', done:'★'};
+  const tsEl = document.createElement('span');
+  tsEl.className = 'log-ts';
+  tsEl.textContent = ts || '';
+
+  const pre = document.createElement('span');
+  pre.className = 'log-prefix';
+  pre.textContent = prefixes[level] || '·';
+
+  const msgEl = document.createElement('span');
+  msgEl.className = 'log-msg';
+  msgEl.textContent = msg;
+
+  entry.appendChild(tsEl);
+  entry.appendChild(pre);
+  entry.appendChild(msgEl);
+  box.appendChild(entry);
+  logCount++;
+
+  if(autoScroll) box.scrollTop = box.scrollHeight;
+}
+
+function clearLogs() {
+  document.getElementById('log-box').innerHTML = '<div class="log-empty">Logs will appear here once you start a job.</div>';
+  document.getElementById('link-box').classList.remove('show');
+  logCount = 0;
+}
+
+// ═══════════════════════════════════════════════
+//  STATUS BAR
+// ═══════════════════════════════════════════════
+function setStatus(state, msg) {
+  const bar = document.getElementById('status-bar');
+  bar.className = 'status-bar status-' + state;
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════
+//  AUTO-SCROLL
+// ═══════════════════════════════════════════════
+function toggleAutoScroll(btn) {
+  autoScroll = !autoScroll;
+  btn.textContent = autoScroll ? '⬇ Auto' : '⏸ Paused';
+  btn.style.color = autoScroll ? '' : 'var(--warn)';
+  if(autoScroll) {
+    const box = document.getElementById('log-box');
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function setBtn(btn, icon, label, disabled) {
+  document.getElementById('submit-icon').textContent = icon;
+  document.getElementById('submit-label').textContent = label;
+  btn.disabled = disabled;
+}
+</script>
+</body>
+</html>
